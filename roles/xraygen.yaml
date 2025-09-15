@@ -1,0 +1,53 @@
+- name: generate uuid
+  ansible.builtin.shell:
+    cmd: '/usr/local/bin/xray uuid > /tmp/uuid.txt'
+    creates: '/tmp/uuid.txt'
+- name: copy uuid
+  ansible.builtin.synchronize:
+    src: '/tmp/uuid.txt'
+    dest: 'temp_data/uuid.txt'
+    mode: 'pull'
+  delegate_to: localhost
+- name: generate x25519
+  ansible.builtin.shell:
+    cmd: '/usr/local/bin/xray x25519 > /tmp/x25519.txt'
+    creates: '/tmp/x25519.txt'
+- name: copy x25519
+  ansible.builtin.synchronize:
+    src: '/tmp/x25519.txt'
+    dest: 'temp_data/x25519.txt'
+    mode: 'pull'
+  delegate_to: localhost
+- name: generate user_id
+  delegate_to: localhost
+  ansible.builtin.shell:
+    cmd: 'openssl rand -hex 8 > temp_data/rand_id.txt'
+    creates: 'temp_data/rand_id.txt'
+- name: save uuid
+  set_fact:
+    client_uuid: "{{ lookup('ansible.builtin.file', 'temp_data/uuid.txt') }}"
+- name: save x25519 content
+  set_fact:
+    x25519_content: "{{ lookup('ansible.builtin.file', 'temp_data/x25519.txt').replace('Private key: ', '').replace('Public key: ', '').split('\n') }}"
+- name: extract public x25519
+  set_fact:
+    x25519_public: "{{ x25519_content[1] }}"
+- name: extract private x25519
+  set_fact:
+    x25519_private: "{{ x25519_content[0] }}"
+- name: save random ID
+  set_fact:
+    rand_id: "{{ lookup('ansible.builtin.file', 'temp_data/rand_id.txt') }}"
+- name: build server configuration
+  ansible.builtin.template:
+    src: 'templates/xray_server_config.j2'
+    dest: 'remote_configs/xray_server.conf'
+  delegate_to: localhost
+- name: define manager address
+  set_fact:
+    manager_address: "{{ hostvars['manager1']['ansible_host'] }}"
+- name: build client configuration
+  ansible.builtin.template:
+    src: 'templates/xray_client_config.j2'
+    dest: 'remote_configs/xray_client.txt'
+  delegate_to: localhost

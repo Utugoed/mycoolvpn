@@ -1,0 +1,12 @@
+- name: upload conf to server
+  ansible.builtin.synchronize:
+    src: 'remote_configs/xray_server.conf'
+    dest: '/tmp/xray_sever.conf'
+- name: set new conf
+  ansible.builtin.shell:
+    cmd: "cat '/tmp/xray_sever.conf' > '/usr/local/etc/xray/config.json'"
+- name: restart xray
+  ansible.builtin.service:
+    name: 'xray'
+    state: 'restarted'
+    enabled: true

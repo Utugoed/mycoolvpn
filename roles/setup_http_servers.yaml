@@ -1,0 +1,15 @@
+- name: install nginx
+  ansible.builtin.apt:
+    name: ['nginx']
+- name: upload nginx config
+  ansible.builtin.synchronize:
+    src: "remote_configs/nginx_ping.conf"
+    dest: "/tmp/"
+- name: update nginx config
+  ansible.builtin.shell:
+    cmd: "cat /tmp/nginx_ping.conf > /etc/nginx/nginx.conf"
+- name: start xray
+  ansible.builtin.service:
+    name: 'nginx'
+    state: 'restarted'
+    enabled: true

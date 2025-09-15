@@ -1,0 +1,51 @@
+- name: Install nginx
+  ansible.builtin.apt:
+    name: ['nginx', 'rsync', 'cron']
+    update_cache: true
+- name: Generate nginx configs
+  ansible.builtin.template:
+    src: 'templates/nginx_conf.j2'
+    dest: 'remote_configs/manager_configs/nginx_{{item}}.conf'
+  delegate_to: localhost
+  loop: "{{ groups['vpn_servers'] }}"
+- name: set manager clients ports range start
+  set_fact:
+    manager_clients_ports_range_start: 18800
+- name: set current vpn name
+  set_fact:
+    current_vpn_name: vpn1
+- name: get uuid
+  set_fact:
+    client_uuid: "{{ lookup('ansible.builtin.file', 'temp_data/uuid.txt') }}"
+- name: get random ID
+  set_fact:
+    rand_id: "{{ lookup('ansible.builtin.file', 'temp_data/rand_id.txt') }}"
+- name: Generate xray configs
+  ansible.builtin.template:
+    src: 'templates/xray_manager_client_config.j2'
+    dest: 'remote_configs/manager_configs/xray_{{item}}.json'
+  delegate_to: localhost
+  loop: "{{ groups['vpn_servers'] }}"
+  loop_control:
+    index_var: vpn_idx
+- name: Upload configs
+  ansible.builtin.synchronize:
+    src: 'remote_configs/manager_configs'
+    dest: '/root/'
+- name: Start xray clients
+  ansible.builtin.shell:
+    cmd: "nohup xray run -c /root/manager_configs/xray_{{item}}.json > /dev/null 2>&1 &"
+  loop: "{{ groups['vpn_servers'] }}"
+- name: gen measure connections script
+  ansible.builtin.template:
+    src: "templates/measure_conn_speeds.j2"
+    dest: "utilities/measure_conn_speeds.sh"
+  delegate_to: localhost
+- name: upload measure connections script
+  ansible.builtin.synchronize:
+    src: 'utilities/measure_conn_speeds.sh'
+    dest: '/root/'
+- name: make measure connections script executable
+  ansible.builtin.file:
+    path: '/root/measure_conn_speeds.sh'
+    mode: 0755

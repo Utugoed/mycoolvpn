@@ -1,0 +1,50 @@
+- name: Set up manager
+  hosts: manager1
+  tasks:
+    - name: include manager tasks
+      ansible.builtin.include_tasks:
+        file: 'roles/setup_manager.yaml'
+- name: XRAY
+  hosts: all
+  tasks:
+    - name: Do get dependencies[APT]
+      ansible.builtin.apt:
+        name: ['wget', 'curl', 'rsync']
+        update_cache: true
+      when:
+        - ansible_pkg_mgr == "apt"
+    - name: Do get xray
+      ansible.builtin.get_url:
+        url: 'https://github.com/XTLS/Xray-install/raw/main/install-release.sh'
+        dest: './install-release.sh'
+    - name: Make installer executable
+      ansible.builtin.file:
+        path: './install-release.sh'
+        mode: 'u+rwx'
+    - name: install xray
+      ansible.builtin.shell:
+        cmd: './install-release.sh'
+        creates: '/usr/local/bin/xray'
+    - name: start xray
+      ansible.builtin.service:
+        name: 'xray'
+        state: 'started'
+        enabled: true
+- name: Generate configs
+  hosts: vpn1
+  tasks:
+    - name: generate xray data
+      ansible.builtin.include_tasks:
+        file: 'roles/xraygen.yaml'
+- name: Set up configs on servers
+  hosts: vpn_servers
+  tasks:
+    - name: set up new config
+      ansible.builtin.include_tasks:
+        file: 'roles/upload_xray_conf.yaml'
+- name: Start HTTP servers
+  hosts: vpn_servers
+  tasks:
+    - name: upload and start http servers
+      ansible.builtin.include_tasks:
+        file: 'roles/setup_http_servers.yaml'

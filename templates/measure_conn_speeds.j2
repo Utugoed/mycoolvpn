@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+{# Достаем из инвентори хостнеймы и адреса впн-серверов #}
+
+cur_vpn={{ "'" + current_vpn_name + "'" }}
+vpn_names={{ groups['vpn_servers'] | string | replace('[', '(') | replace(']', ')') | replace(',', '') }}
+vpn_addresses={{ groups['vpn_servers'] | map('extract', hostvars) | map('community.general.json_query', 'ansible_host') | string | replace('[', '(') | replace(']', ')') | replace(',', '')}}
+clients_ports_range_start={{ manager_clients_ports_range_start }}
+
+# Для каждого сервера был запущен отедльный xray
+# Теперь с помощью curl можно замерить скорость http-ответа от каждого сервиса
+
+time_totals=()
+
+for (( i=0; i<${{ '{#' }}vpn_names[@]}; i++ ))
+do
+    time_totals+=(0)
+done
+
+for (( j=0; j<3; j++ ))
+do
+    for (( i=0; i<${{ '{#' }}vpn_names[@]}; i++ ))
+    do
+        echo "TRYING ${vpn_addresses[i]}"
+        res=$(curl -s --proxy 127.0.0.1:$(( clients_ports_range_start+i )) ${vpn_addresses[i]}:8080/ping -w '%{time_total}' )
+        echo $res
+        if [[ ! $res == 'pong'* ]]
+        then
+            add='10000'
+        else
+            add=$(printf "%0.f" $(echo "${res:4} * 1000" | bc))
+        fi
+        time_totals[$i]=$(( ${time_totals[i]} + $add ))
+        echo ${time_totals[i]}
+    done
+    sleep 1s
+done
+
+min=100000
+min_i=100
+cur_time=100000
+for (( i=0; i<${{ '{#' }}vpn_names[@]}; i++ ))
+do
+    echo ${time_totals[i]}
+    cur_time=$(( ${time_totals[i]} / 3 ))
+
+    echo ${vpn_names[i]}
+    echo $cur_time
+    echo ""
+
+    if [[ ${vpn_names[i]} == $cur_vpn ]] && (( $cur_time < 800 ))
+    then
+        echo "Cur VPN is fast enough"
+        exit
+    fi
+
+    if (( $cur_time < $min ))
+    then
+        min_i=$i
+        min=$cur_time
+    fi
+done
+
+echo ${vpn_names[min_i]}
+echo $min
+
+if (( $min < 500 ))
+then
+    echo "Switching is started"
+    cat "./manager_configs/nginx_${vpn_names[i]}.conf" > /etc/nginx/nginx.conf
+    nginx -s reload
+fi

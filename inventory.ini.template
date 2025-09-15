@@ -1,0 +1,6 @@
+[vpn_servers]
+vpn1 ansible_host=<address> ansible_port=<ssh_port> ansible_user=<ssh_user>
+vpn2 ansible_host=<address> ansible_port=<ssh_port> ansible_user=<ssh_user>
+
+[controller]
+manager1 ansible_host=<address> ansible_port=<ssh_port> ansible_user=<ssh_user>

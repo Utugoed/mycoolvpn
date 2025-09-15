@@ -1,0 +1,8 @@
+remote_configs/*
+utilities/*
+
+inventory.ini
+
+.vscode/*
+
+temp_data/*
