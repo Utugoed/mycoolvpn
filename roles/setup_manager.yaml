@@ -1,7 +1,12 @@
 - name: Install nginx
   ansible.builtin.apt:
-    name: ['nginx', 'rsync', 'cron']
+    name: ['nginx', 'rsync', 'cron', 'libnginx-mod-stream']
     update_cache: true
+- name: Create manager configs dir
+  file:
+    path: 'remote_configs/manager_configs'
+    state: directory
+  delegate_to: localhost
 - name: Generate nginx configs
   ansible.builtin.template:
     src: 'templates/nginx_conf.j2'
@@ -36,6 +41,14 @@
   ansible.builtin.shell:
     cmd: "nohup xray run -c /root/manager_configs/xray_{{item}}.json > /dev/null 2>&1 &"
   loop: "{{ groups['vpn_servers'] }}"
+- name: update manager nginx config
+  ansible.builtin.shell:
+    cmd: "cat /root/manager_configs/nginx_ping.conf > /etc/nginx/nginx.conf"
+- name: restart manager nginx
+  ansible.builtin.service:
+    name: 'nginx'
+    state: 'restarted'
+    enabled: true
 - name: gen measure connections script
   ansible.builtin.template:
     src: "templates/measure_conn_speeds.j2"

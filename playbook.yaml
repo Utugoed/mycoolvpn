@@ -1,9 +1,3 @@
-- name: Set up manager
-  hosts: manager1
-  tasks:
-    - name: include manager tasks
-      ansible.builtin.include_tasks:
-        file: 'roles/setup_manager.yaml'
 - name: XRAY
   hosts: all
   tasks:
@@ -48,3 +42,9 @@
     - name: upload and start http servers
       ansible.builtin.include_tasks:
         file: 'roles/setup_http_servers.yaml'
+- name: Set up manager
+  hosts: manager1
+  tasks:
+    - name: include manager tasks
+      ansible.builtin.include_tasks:
+        file: 'roles/setup_manager.yaml'
